@@ -84,7 +84,6 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   background-position: -1px -1px;
 }
 .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.stage.sculpting canvas { cursor: crosshair; }
 .stage.drag { outline: 3px dashed var(--riso); outline-offset: -8px; }
 .pill { font-size: 12px; color: #fff; background: rgba(0,0,0,.42); padding: 5px 10px; border-radius: 999px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .overlay-tl { position: absolute; top: 10px; left: 10px; right: 90px; display: grid; justify-items: start; gap: 6px; pointer-events: none; }
@@ -347,7 +346,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   }
   function updateHint() {
     $('#hint').textContent = tool === 'sculpt'
-      ? (coarse ? 'Drag to sculpt · two fingers to turn' : 'Drag to sculpt · right-drag to turn')
+      ? 'Drag on the scan to sculpt · drag beside it to turn'
       : (coarse ? 'Drag to turn · pinch to zoom' : 'Drag to turn · scroll to zoom');
   }
 
@@ -448,13 +447,12 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     $$('[data-panel]').forEach(p => p.classList.toggle('off', p.dataset.panel !== t));
     const sc = t === 'sculpt';
     stage.classList.toggle('sculpting', sc);
-    controls.mouseButtons = sc
-      ? { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }
-      : { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
-    controls.touches = sc
-      ? { ONE: null, TWO: THREE.TOUCH.DOLLY_ROTATE }
-      : { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
-    if (!sc) ring.visible = false;
+    if (sc) setSculptButtons(true);
+    else {
+      controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+      controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+      ring.visible = false; cv.style.cursor = '';
+    }
     updateHint();
   }
   $$('[data-tool]').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
@@ -547,6 +545,16 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     dirty = true;
   }
   const pointers = new Set();
+  // In Sculpt, a drag that starts on the scan sculpts; a drag that starts beside it turns the view.
+  function setSculptButtons(onModel) {
+    controls.mouseButtons = { LEFT: onModel ? null : THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+    controls.touches = { ONE: onModel ? null : THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_ROTATE };
+  }
+  // capture phase on the stage runs before the camera controls see the press
+  stage.addEventListener('pointerdown', e => {
+    if (tool !== 'sculpt' || e.target !== cv || pointers.size > 0) return;
+    setSculptButtons(!!hitAt(e));
+  }, true);
   cv.addEventListener('pointerdown', e => {
     pointers.add(e.pointerId);
     if (tool !== 'sculpt') return;
@@ -558,7 +566,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     const hit = hitAt(e); if (!hit) return;
     pushHistory(); stroking = true; applyBrush(hit); showRing(hit);
   });
-  cv.addEventListener('pointermove', e => { if (tool === 'sculpt' && pointers.size <= 1) pending = e; });
+  cv.addEventListener('pointermove', e => { if (tool === 'sculpt' && (stroking || pointers.size === 0)) pending = e; });
   const up = e => { pointers.delete(e.pointerId); stroking = false; };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('pointerleave', () => { if (!stroking) ring.visible = false; });
@@ -566,6 +574,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     if (!pending) return;
     const e = pending; pending = null;
     const hit = hitAt(e); showRing(hit);
+    if (!stroking && pointers.size === 0) cv.style.cursor = hit ? 'crosshair' : 'grab';
     if (stroking && hit) applyBrush(hit);
   }
 
