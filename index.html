@@ -243,10 +243,12 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
         <div class="scroller" id="swatches" role="group" aria-label="Color"></div>
         <div class="note" id="photoNote">Photo keeps the scan's own colors. Pick another look to choose a color.</div>
       </div>
-      <div class="panel off" data-panel="angle" role="tabpanel" aria-label="Angle">
-        <div class="scroller" role="group" aria-label="Camera angle">
+      <div class="panel off" data-panel="view" role="tabpanel" aria-label="View">
+        <div class="scroller" role="group" aria-label="View">
           <button class="chip" data-view="front" aria-pressed="true">Front</button>
+          <button class="chip" data-view="back" aria-pressed="false">Back</button>
           <button class="chip" data-view="side" aria-pressed="false">Side</button>
+          <button class="chip" data-view="otherside" aria-pressed="false">Other side</button>
           <button class="chip" data-view="top" aria-pressed="false">From above</button>
           <button class="chip" data-view="below" aria-pressed="false">From below</button>
         </div>
@@ -260,8 +262,8 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4l6 6-9 9H5v-6z"/><path d="M12 6l6 6"/></svg>Sculpt</button>
       <button class="tab" role="tab" data-tool="look" aria-selected="false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg>Look</button>
-      <button class="tab" role="tab" data-tool="angle" aria-selected="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4V11M21 7v10l-9 4"/></svg>Angle</button>
+      <button class="tab" role="tab" data-tool="view" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4V11M21 7v10l-9 4"/></svg>View</button>
     </nav>
   </section>
 </div>
@@ -457,8 +459,8 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   }
   $$('[data-tool]').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
 
-  // ---------- angle ----------
-  const views = { front: [0, 0.35, 5.2], side: [5.2, 0.35, 0], top: [0, 5.4, 0.001], below: [0, -5.4, 0.001] };
+  // ---------- view ----------
+  const views = { front: [0, 0.35, 5.2], back: [0, 0.35, -5.2], side: [5.2, 0.35, 0], otherside: [-5.2, 0.35, 0], top: [0, 5.4, 0.001], below: [0, -5.4, 0.001] };
   function setView(v) {
     view = v; const p = views[v];
     camera.position.set(p[0], p[1], p[2]); controls.target.set(0, 0, 0); controls.update();
@@ -724,7 +726,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     o.getContext('2d').drawImage(c, x0, y0, cw, ch, pad, pad, cw, ch);
     return o.toDataURL('image/png');
   }
-  const viewNames = { front: 'front', side: 'side', top: 'above', below: 'below', custom: 'turned' };
+  const viewNames = { front: 'front', back: 'back', side: 'side', otherside: 'other-side', top: 'above', below: 'below', custom: 'turned' };
   const lookNames = { photo: 'Photo', clay: 'Clay', wire: 'Wireframe', ink: 'Silhouette' };
   $('#snap').addEventListener('click', () => {
     const pr = renderer.getPixelRatio(), ringWas = ring.visible;

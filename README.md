@@ -8,7 +8,7 @@ A one-screen browser studio for remixing 3D scans and turning them into printabl
 - **Shape:** twist, bend, melt, lumpy, puff up, stretch, glitch, or "Surprise me."
 - **Sculpt:** pull out, push in, and smooth brushes, with size and strength.
 - **Look:** the scan's photo colors, clay, wireframe, or silhouette, in risograph ink colors or any color.
-- **Angle:** front, side, from above, from below, or turn it freely.
+- **View:** front, back, side, other side, from above, from below, or turn it freely.
 - **Cutouts:** the scissors button captures the current view as a transparent, tightly cropped PNG, ready to print and cut.
 
 Undo and redo cover every change. Nothing is uploaded: scans stay in the browser.
