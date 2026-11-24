@@ -152,7 +152,6 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
 .rowx { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .rowx .scroller { flex: 1; min-width: 0; }
 .rbtn { flex: none; height: 44px; padding: 0 4px; border: 0; background: none; color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.rbtn:disabled { opacity: .3; text-decoration: none; cursor: default; }
 .note { min-height: 44px; display: flex; align-items: center; color: var(--muted); font-size: 14px; }
 .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .tab {
@@ -504,8 +503,17 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     return false;
   });
   function syncResets() {
-    $('#rsShape').disabled = !shapeChanged();
-    $('#rsSculpt').disabled = !sculptChanged();
+    const sh = shapeChanged(), sc2 = sculptChanged();
+    $('#rsShape').hidden = !sh;
+    $('#rsSculpt').hidden = !sc2;
+    const d = defs.find(x => x.id === effect);
+    // keep the slider's width steady while dragging, so this link fades in place instead of collapsing
+    $('#fxReset').style.visibility = Math.abs(P[d.id] - d.val) > 1e-6 ? 'visible' : 'hidden';
+    const lookChanged = look !== 'photo' || mapMode !== 'wrap' || texRep !== 1 ||
+      Object.keys(DEFAULT_COLORS).some(k => colors[k] !== DEFAULT_COLORS[k]);
+    const any = sh || sc2 || lookChanged || view !== 'front';
+    if (!any) disarm();
+    $('#startOver').hidden = !any;
   }
   $('#rsShape').addEventListener('click', () => { pushHistory(); resetShape(); toast('Shape reset. Undo brings it back.'); });
   $('#rsSculpt').addEventListener('click', () => { pushHistory(); resetSculpt(); toast('Sculpting reset. Undo brings it back.'); });
