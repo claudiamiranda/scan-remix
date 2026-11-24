@@ -15,6 +15,6 @@ Undo and redo cover every change. Nothing is uploaded: scans stay in the browser
 
 ## Run it
 
-It is a single `index.html` with no build step. Open it in a browser, or turn on GitHub Pages for this repository (Settings → Pages → deploy from the `main` branch, root folder).
+It is a single `index.html` with no build step, plus `doll_01.glb`, a phone scan of a hand-built clay doll that loads as the sample. Open it in a browser, or turn on GitHub Pages for this repository (Settings → Pages → deploy from the `main` branch, root folder).
 
 Uses [three.js](https://threejs.org) r147 from a CDN, so it needs an internet connection on first load.

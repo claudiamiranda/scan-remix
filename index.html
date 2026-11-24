@@ -757,6 +757,12 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     grp.add(handle);
     return grp;
   }
+  async function parseGLB(buf) {
+    // load textures through <img> so the page's sandbox allows them
+    const cib = window.createImageBitmap; window.createImageBitmap = undefined;
+    try { return await new Promise((res, rej) => new THREE.GLTFLoader().parse(buf, '', g => res(g.scene), rej)); }
+    finally { window.createImageBitmap = cib; }
+  }
   async function loadFile(file) {
     const name = file.name.replace(/\.[^.]+$/, '');
     const ext = (file.name.split('.').pop() || '').toLowerCase();
@@ -764,10 +770,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     try {
       let obj;
       if (ext === 'glb' || ext === 'gltf') {
-        const buf = await file.arrayBuffer();
-        const cib = window.createImageBitmap; window.createImageBitmap = undefined;
-        try { obj = await new Promise((res, rej) => new THREE.GLTFLoader().parse(buf, '', g => res(g.scene), rej)); }
-        finally { window.createImageBitmap = cib; }
+        obj = await parseGLB(await file.arrayBuffer());
       } else if (ext === 'obj') {
         obj = new THREE.OBJLoader().parse(await file.text());
         obj.traverse(o => { if (o.isMesh) o.material = looks.clay; });
@@ -867,10 +870,21 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !drawer.hidden) closeCuts(); });
 
   // ---------- go ----------
+  // start with the sample doll scan; fall back to a drawn pot if it cannot load
   useObject(samplePot(), 'Sample: hand-built pot');
-  P.twist = 90; P.melt = 0.35; effect = 'melt';
   syncShapeUI(); syncLookUI(); syncCuts(); setTool('shape');
   resize(); setView('front');
+  const getBin = () => fetch('doll_01.glb').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
+  // Claude artifacts can't serve .glb files, so there the scan sits beside the page as base64 text
+  const getB64 = () => fetch('doll_01.glb.b64.txt').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+    .then(t => { const bin = atob(t.trim()), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; });
+  getBin().catch(getB64)
+    .then(parseGLB)
+    .then(obj => {
+      if (undoStack.length || $('#modelTag').textContent !== 'Sample: hand-built pot') return; // someone already opened their own scan
+      useObject(obj, 'Sample: doll scan'); syncShapeUI(); setView('front');
+    })
+    .catch(() => {});
   (function loop() {
     requestAnimationFrame(loop);
     brushTick();
