@@ -10,7 +10,7 @@ A one-screen browser studio for remixing 3D scans and turning them into printabl
 - **Look:** the scan's original colors, clay, wireframe, or silhouette in risograph ink colors or any color, or **your photo** wrapped onto the scan (around it or flat from the front, repeated 1, 2 or 4 times).
 - **View:** front, back, side, other side, from above, from below, or turn it freely.
 - **Cutouts:** the scissors button captures the current view as a transparent, tightly cropped PNG, ready to print and cut.
-- **Print sheet:** from the cutouts drawer, tap **Arrange to print** to place, resize and rotate cutouts on a letter-size page at real size (inches), then save a PDF or PNG. A dashed line marks the printable area. Print the PDF at 100% (actual size) so sizes match.
+- **Print sheet:** from the cutouts drawer, tap **Arrange to print**, then tap or drag cutouts onto a letter-size page to place, resize and rotate them at real size (inches), then save a PDF or PNG. A dashed line marks the printable area. Print the PDF at 100% (actual size) so sizes match.
 
 Undo and redo cover every change, Shape and Sculpt each have their own reset, and Reset all returns the scan, look and view to the start. Nothing is uploaded: scans stay in the browser.
 

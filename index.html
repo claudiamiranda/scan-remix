@@ -206,7 +206,10 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   background-image: linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%), linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%);
   background-size: 12px 12px; background-position: 0 0, 6px 6px;
 }
-.tthumbbtn img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.tthumbbtn { touch-action: pan-x; }
+.tthumbbtn img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.drag-ghost { position: fixed; z-index: 40; width: 96px; pointer-events: none; opacity: .85; transform: translate(-50%, -50%) rotate(-4deg); filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); }
+.arr-stage.drop-on { outline: 3px dashed var(--riso); outline-offset: -8px; }
 .arrange .toast { top: 10px; right: 10px; }
 @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; animation: none !important; } }
 </style>
@@ -345,7 +348,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
       <button class="chip" id="arrBack2" title="Send to back">Back</button>
     </div>
     <div id="arrNone">
-      <span class="note">Tap a cutout below to add it. Drag to place, pull the corner to resize, tap the paper to deselect.</span>
+      <span class="note">Tap or drag a cutout from below onto the page. Pull the corner to resize, tap the paper to deselect.</span>
       <button class="chip" id="arrOrient">Landscape</button>
     </div>
   </div>
@@ -1118,9 +1121,11 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     c.getContext('2d').drawImage(img, pad, pad, c.width, c.height, 0, 0, c.width, c.height);
     return c;
   }
-  function addToSheet(src) {
+  function addToSheet(src, at) {
     const img = trimmed(src), n = items.length;
     const it = { id: nextId++, img, w: Math.min(3, PW - 2 * MARGIN), rot: 0, cx: PW / 2 + (n % 5) * 0.3 - 0.6, cy: PH / 2 + (n % 5) * 0.3 - 0.6 };
+    // dropped by drag: center it where it was let go, kept on the page
+    if (at) { it.cx = Math.max(0, Math.min(PW, at.x)); it.cy = Math.max(0, Math.min(PH, at.y)); }
     const h = itemH(it), maxH = PH - 2 * MARGIN;
     if (h > maxH) it.w *= maxH / h;
     items.push(it); sel = it; drawSheet();
@@ -1133,9 +1138,46 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
       const b = document.createElement('button'); b.type = 'button'; b.className = 'tthumbbtn';
       b.setAttribute('aria-label', 'Add ' + (src.alt || 'cutout') + ' to the sheet');
       const im = new Image(); im.src = src.src; im.alt = ''; b.appendChild(im);
-      b.addEventListener('click', () => { if (im.complete) addToSheet(im); else im.onload = () => addToSheet(im); });
+      const add = at => { if (im.complete) addToSheet(im, at); else im.onload = () => addToSheet(im, at); };
+      b.addEventListener('click', () => { if (suppressClick) { suppressClick = false; return; } add(); });
+      b.addEventListener('pointerdown', e => trayDrag(e, b, im, add));
       tray.appendChild(b);
     });
+  }
+  // drag a cutout from the tray onto the sheet (a plain tap still adds it to the middle)
+  let suppressClick = false;
+  function trayDrag(e, btn, im, add) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const x0 = e.clientX, y0 = e.clientY, id = e.pointerId;
+    let ghost = null;
+    const overStage = ev => { const r = arrStage.getBoundingClientRect(); return ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom; };
+    const move = ev => {
+      if (ev.pointerId !== id) return;
+      const dx = ev.clientX - x0, dy = ev.clientY - y0;
+      if (!ghost) {
+        // on touch, sideways swipes scroll the tray; only an upward pull starts a drag
+        const go = e.pointerType === 'mouse' ? Math.hypot(dx, dy) > 6 : (dy < -10 && Math.abs(dy) > Math.abs(dx));
+        if (!go) { if (e.pointerType !== 'mouse' && Math.abs(dx) > 10) stop(); return; }
+        ghost = document.createElement('img'); ghost.className = 'drag-ghost'; ghost.src = im.src; ghost.alt = '';
+        document.body.appendChild(ghost);
+        try { btn.setPointerCapture(id); } catch (_) {}
+      }
+      ghost.style.left = ev.clientX + 'px'; ghost.style.top = ev.clientY + 'px';
+      arrStage.classList.toggle('drop-on', overStage(ev));
+    };
+    const up = ev => {
+      if (ev.pointerId !== id) return;
+      if (ghost) {
+        suppressClick = true; setTimeout(() => { suppressClick = false; }, 300);
+        if (ev.type === 'pointerup' && overStage(ev)) add(toPage(ev));
+      }
+      stop();
+    };
+    function stop() {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+      if (ghost) ghost.remove(); ghost = null; arrStage.classList.remove('drop-on');
+    }
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
   }
   function openArrange() {
     drawer.hidden = true; arr.hidden = false; buildTray();
