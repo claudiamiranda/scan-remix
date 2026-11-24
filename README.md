@@ -7,7 +7,7 @@ A one-screen browser studio for remixing 3D scans and turning them into printabl
 - **Open a scan** (GLB, or OBJ without color) from a phone scanning app such as Scaniverse, or drop it on the mat.
 - **Shape:** twist, bend, melt, lumpy, puff up, stretch, glitch, or "Surprise me."
 - **Sculpt:** pull out, push in, and smooth brushes, with size and strength.
-- **Look:** the scan's photo colors, clay, wireframe, or silhouette, in risograph ink colors or any color.
+- **Look:** the scan's original colors, clay, wireframe, or silhouette in risograph ink colors or any color, or **your photo** wrapped onto the scan (around it or flat from the front, repeated 1, 2 or 4 times).
 - **View:** front, back, side, other side, from above, from below, or turn it freely.
 - **Cutouts:** the scissors button captures the current view as a transparent, tightly cropped PNG, ready to print and cut.
 

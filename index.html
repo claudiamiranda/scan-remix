@@ -138,6 +138,9 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
 .sw[aria-pressed="true"] { outline: 3px solid var(--ink); outline-offset: 2px; }
 .custom { flex: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; padding-right: 6px; cursor: pointer; }
 .custom input { width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 50%; padding: 2px; background: var(--paper); cursor: pointer; }
+.chip.pick { cursor: pointer; padding-left: 6px; }
+.chip.pick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.tthumb { width: 32px; height: 32px; border-radius: 50%; background: var(--check) center / cover no-repeat; border: 1px solid var(--line); flex: none; }
 .note { min-height: 44px; display: flex; align-items: center; color: var(--muted); font-size: 14px; }
 .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .tab {
@@ -234,13 +237,20 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
       </div>
       <div class="panel off" data-panel="look" role="tabpanel" aria-label="Look">
         <div class="scroller" role="group" aria-label="Look">
-          <button class="chip" data-look="photo" aria-pressed="true">Photo</button>
+          <button class="chip" data-look="photo" aria-pressed="true">Original</button>
+          <button class="chip" data-look="texture" aria-pressed="false">Your photo</button>
           <button class="chip" data-look="clay" aria-pressed="false">Clay</button>
           <button class="chip" data-look="wire" aria-pressed="false">Wireframe</button>
           <button class="chip" data-look="ink" aria-pressed="false">Silhouette</button>
         </div>
         <div class="scroller" id="swatches" role="group" aria-label="Color"></div>
-        <div class="note" id="photoNote">Photo keeps the scan's own colors. Pick another look to choose a color.</div>
+        <div class="scroller" id="texRow" role="group" aria-label="Photo wrap" hidden>
+          <label class="chip pick" for="texFile"><span class="tthumb" id="texThumb"></span><span id="texPickLabel">Choose photo</span><input type="file" id="texFile" accept="image/*"></label>
+          <button class="chip" data-map="wrap" aria-pressed="true">Wrap around</button>
+          <button class="chip" data-map="front" aria-pressed="false">Flat from front</button>
+          <button class="chip" id="texRepeat">Repeat 1×</button>
+        </div>
+        <div class="note" id="photoNote">Original keeps the scan's own colors. Pick another look to choose a color or wrap a photo.</div>
       </div>
       <div class="panel off" data-panel="view" role="tabpanel" aria-label="View">
         <div class="scroller" role="group" aria-label="View">
@@ -328,13 +338,17 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   const looks = {
     clay: new THREE.MeshStandardMaterial({ color: 0xbdb6ad, roughness: 1, metalness: 0, side: THREE.DoubleSide }),
     wire: new THREE.MeshBasicMaterial({ color: 0xff48b0, wireframe: true }),
-    ink: new THREE.MeshBasicMaterial({ color: 0x15171a, side: THREE.DoubleSide })
+    ink: new THREE.MeshBasicMaterial({ color: 0x15171a, side: THREE.DoubleSide }),
+    texture: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0, side: THREE.DoubleSide })
   };
+  let texture = null, texAspect = 1, mapMode = 'wrap', texRep = 1;
 
   function resize() {
     const r = stage.getBoundingClientRect();
     renderer.setSize(Math.max(1, r.width), Math.max(1, r.height), false);
-    camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+    camera.aspect = r.width / Math.max(1, r.height);
+    camera.zoom = Math.min(1, camera.aspect / 1.05); // pull back on tall, narrow screens so the whole scan fits
+    camera.updateProjectionMatrix();
   }
   new ResizeObserver(resize).observe(stage);
 
@@ -482,17 +496,68 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   custom.innerHTML = '<input type="color" id="customColor" value="#ff48b0" aria-label="Any color"> Any';
   swEl.appendChild(custom);
   $('#customColor').addEventListener('input', e => setColor(e.target.value));
-  function setColor(hex) { if (look === 'photo') return; colors[look] = hex.toLowerCase(); looks[look].color.set(hex); syncLookUI(); }
+  function setColor(hex) { if (!(look in colors)) return; colors[look] = hex.toLowerCase(); looks[look].color.set(hex); syncLookUI(); }
   function syncLookUI() {
     $$('[data-look]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.look === look)));
-    const photo = look === 'photo';
-    swEl.hidden = photo; $('#photoNote').hidden = !photo;
-    if (photo) return;
+    const photo = look === 'photo', tex = look === 'texture';
+    swEl.hidden = photo || tex; $('#photoNote').hidden = !photo; $('#texRow').hidden = !tex;
+    if (photo || tex) return;
     $$('.sw').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.hex === colors[look])));
     $('#customColor').value = colors[look];
   }
-  function setLook(l) { look = l; meshes.forEach(m => { m.material = l === 'photo' ? m.userData.origMat : looks[l]; }); syncLookUI(); }
-  $$('[data-look]').forEach(b => b.addEventListener('click', () => setLook(b.dataset.look)));
+  function setLook(l) {
+    look = l;
+    meshes.forEach(m => {
+      const g = m.geometry;
+      if (l === 'texture') g.setAttribute('uv', mapMode === 'wrap' ? m.userData.uvWrap : m.userData.uvFront);
+      else if (m.userData.origUV) g.setAttribute('uv', m.userData.origUV);
+      m.material = l === 'photo' ? m.userData.origMat : l === 'texture' ? (texture ? looks.texture : looks.clay) : looks[l];
+    });
+    syncLookUI();
+  }
+  $$('[data-look]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.look === 'texture' && !texture) $('#texFile').click();
+    setLook(b.dataset.look);
+  }));
+
+  // ---------- your photo as texture ----------
+  function applyRepeat() {
+    if (!texture) return;
+    // keep the photo's proportions instead of squashing it to a square
+    texture.repeat.set(texRep * Math.min(1, 1 / texAspect), texRep * Math.min(1, texAspect));
+  }
+  function loadTexture(file) {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 2048 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      if (texture) texture.dispose();
+      texture = new THREE.CanvasTexture(c);
+      texture.encoding = THREE.sRGBEncoding;
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      texAspect = c.width / c.height; applyRepeat();
+      looks.texture.map = texture; looks.texture.needsUpdate = true;
+      $('#texThumb').style.backgroundImage = `url("${c.toDataURL('image/jpeg', 0.7)}")`;
+      $('#texPickLabel').textContent = 'Change photo';
+      setLook('texture'); toast('Photo wrapped onto your scan');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); toast('That photo did not open. Try a JPG or PNG.'); };
+    img.src = url;
+  }
+  $('#texFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) loadTexture(f); });
+  $$('[data-map]').forEach(b => b.addEventListener('click', () => {
+    mapMode = b.dataset.map;
+    $$('[data-map]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    if (look === 'texture') setLook('texture');
+  }));
+  $('#texRepeat').addEventListener('click', () => {
+    texRep = texRep === 1 ? 2 : texRep === 2 ? 4 : 1;
+    $('#texRepeat').textContent = 'Repeat ' + texRep + '×'; applyRepeat();
+  });
 
   // ---------- sculpt ----------
   let brush = 'pull', stroking = false, pending = null;
@@ -600,7 +665,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
         if (P.melt > 0) {
           const mt = P.melt;
           y = floorY + (y - floorY) * (1 - 0.6 * mt * (0.35 + 0.65 * h));
-          const spread = 1 + mt * 1.3 * Math.pow(1 - h, 2.2);
+          const spread = 1 + mt * 1.3 * Math.pow(Math.max(0, 1 - h), 2.2);
           x *= spread; z *= spread;
           const d = Math.max(0, noise3(x * 3.2 + sd, 0.5, z * 3.2) - 0.5) * 2;
           y -= mt * 0.7 * d * d * h;
@@ -633,7 +698,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
       g.computeBoundingBox(); box.union(g.boundingBox);
       const mat = (Array.isArray(o.material) ? o.material[0] : o.material) || looks.clay;
       mat.side = THREE.DoubleSide;
-      const m = new THREE.Mesh(g, mat); m.userData.origMat = mat;
+      const m = new THREE.Mesh(g, mat); m.userData.origMat = mat; m.userData.origUV = g.attributes.uv || null;
       meshes.push(m); root.add(m);
     });
     const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
@@ -648,6 +713,16 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
       verts += g.attributes.position.count;
     });
     bounds = { yMin: -s.y * k / 2, yMax: s.y * k / 2 };
+    meshes.forEach(m => {
+      const o = m.userData.pristine, cnt = o.length / 3, uw = new Float32Array(cnt * 2), uf = new Float32Array(cnt * 2);
+      for (let i = 0; i < cnt; i++) {
+        const x = o[i * 3], y = o[i * 3 + 1], z = o[i * 3 + 2];
+        uw[i * 2] = Math.atan2(x, z) / (2 * Math.PI) + 0.5; uw[i * 2 + 1] = (y - bounds.yMin) / ((bounds.yMax - bounds.yMin) || 1);
+        uf[i * 2] = x / 2.4 + 0.5; uf[i * 2 + 1] = y / 2.4 + 0.5;
+      }
+      m.userData.uvWrap = new THREE.BufferAttribute(uw, 2);
+      m.userData.uvFront = new THREE.BufferAttribute(uf, 2);
+    });
     $('#modelTag').textContent = name;
     undoStack.length = 0; redoStack.length = 0; syncHistoryUI();
     setLook(look); dirty = true;
@@ -701,7 +776,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
       const verts = useObject(obj, name);
       syncShapeUI(); setView('front');
       toast(verts > 400000 ? 'Opened. This scan is very detailed, so editing may feel slow.'
-        : ext === 'obj' ? 'Opened. OBJ files have no color, so Photo shows clay.' : 'Opened ' + file.name);
+        : ext === 'obj' ? 'Opened. OBJ files have no color, so Original shows clay.' : 'Opened ' + file.name);
     } catch (e) {
       toast(e.message === 'type' ? 'That file type will not open. Export the scan as GLB and try again.'
         : 'This file did not open. Try exporting it as a single GLB file.');
@@ -736,7 +811,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     return o.toDataURL('image/png');
   }
   const viewNames = { front: 'front', back: 'back', side: 'side', otherside: 'other-side', top: 'above', below: 'below', custom: 'turned' };
-  const lookNames = { photo: 'Photo', clay: 'Clay', wire: 'Wireframe', ink: 'Silhouette' };
+  const lookNames = { photo: 'Original', texture: 'Photo-wrap', clay: 'Clay', wire: 'Wireframe', ink: 'Silhouette' };
   $('#snap').addEventListener('click', () => {
     const pr = renderer.getPixelRatio(), ringWas = ring.visible;
     ring.visible = false; renderer.setPixelRatio(3); resize();
