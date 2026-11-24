@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
 <title>Scan Remix</title>
@@ -71,6 +71,10 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
 .tbtn.warn { background: var(--riso); color: var(--on-riso); border-color: var(--riso); }
 @media (max-width: 480px) {
   .hide-sm { display: none; }
+  body { padding-block: 2px; }
+  .app { gap: 6px; }
+  .tab { height: 48px; }
+  .tray { padding: 8px 10px; }
   .brand { font-size: 19px; line-height: .95; }
   .brand span { display: block; }
 }
