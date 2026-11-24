@@ -246,7 +246,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
           <button class="chip" data-look="clay" aria-pressed="false">Clay</button>
           <button class="chip" data-look="wire" aria-pressed="false">Wireframe</button>
           <button class="chip" data-look="ink" aria-pressed="false">Silhouette</button>
-        </div><button class="rbtn" id="rsLook">Reset look</button></div>
+        </div></div>
         <div class="scroller" id="swatches" role="group" aria-label="Color"></div>
         <div class="scroller" id="texRow" role="group" aria-label="Photo wrap" hidden>
           <label class="chip pick" for="texFile"><span class="tthumb" id="texThumb"></span><span id="texPickLabel">Choose photo</span><input type="file" id="texFile" accept="image/*"></label>
@@ -264,7 +264,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
           <button class="chip" data-view="otherside" aria-pressed="false">Other side</button>
           <button class="chip" data-view="top" aria-pressed="false">From above</button>
           <button class="chip" data-view="below" aria-pressed="false">From below</button>
-        </div><button class="rbtn" id="rsView">Reset view</button></div>
+        </div></div>
         <div class="note">Or drag on the mat to turn it any way you like.</div>
       </div>
     </div>
@@ -435,14 +435,9 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   function syncResets() {
     $('#rsShape').disabled = !shapeChanged();
     $('#rsSculpt').disabled = !sculptChanged();
-    $('#rsLook').disabled = look === 'photo' && mapMode === 'wrap' && texRep === 1 &&
-      Object.keys(DEFAULT_COLORS).every(k => colors[k] === DEFAULT_COLORS[k]);
-    $('#rsView').disabled = view === 'front';
   }
   $('#rsShape').addEventListener('click', () => { pushHistory(); resetShape(); toast('Shape reset. Undo brings it back.'); });
   $('#rsSculpt').addEventListener('click', () => { pushHistory(); resetSculpt(); toast('Sculpting reset. Undo brings it back.'); });
-  $('#rsLook').addEventListener('click', () => { resetLook(); toast('Back to the original look'); });
-  $('#rsView').addEventListener('click', resetView);
   function disarm() { const b = $('#startOver'); b.classList.remove('warn'); b.setAttribute('aria-label', 'Reset all'); $('#startOverLabel').textContent = 'Reset all'; }
 
   // ---------- shape panel ----------
