@@ -141,6 +141,10 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
 .chip.pick { cursor: pointer; padding-left: 6px; }
 .chip.pick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .tthumb { width: 32px; height: 32px; border-radius: 50%; background: var(--check) center / cover no-repeat; border: 1px solid var(--line); flex: none; }
+.rowx { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rowx .scroller { flex: 1; min-width: 0; }
+.rbtn { flex: none; height: 44px; padding: 0 4px; border: 0; background: none; color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.rbtn:disabled { opacity: .3; text-decoration: none; cursor: default; }
 .note { min-height: 44px; display: flex; align-items: center; color: var(--muted); font-size: 14px; }
 .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .tab {
@@ -216,7 +220,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   <section class="dock">
     <div class="tray">
       <div class="panel" data-panel="shape" role="tabpanel" aria-label="Shape">
-        <div class="scroller" id="fxChips" role="group" aria-label="Effect"></div>
+        <div class="rowx"><div class="scroller" id="fxChips" role="group" aria-label="Effect"></div><button class="rbtn" id="rsShape">Reset shape</button></div>
         <div class="slrow">
           <label for="fx" id="fxLabel">Twist</label>
           <input type="range" id="fx">
@@ -225,24 +229,24 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
         </div>
       </div>
       <div class="panel off" data-panel="sculpt" role="tabpanel" aria-label="Sculpt">
-        <div class="scroller" role="group" aria-label="Brush">
+        <div class="rowx"><div class="scroller" role="group" aria-label="Brush">
           <button class="chip" data-brush="pull" aria-pressed="true">Pull out</button>
           <button class="chip" data-brush="push" aria-pressed="false">Push in</button>
           <button class="chip" data-brush="smooth" aria-pressed="false">Smooth</button>
-        </div>
+        </div><button class="rbtn" id="rsSculpt">Reset sculpt</button></div>
         <div class="two">
           <div class="slrow"><label for="bSize">Size</label><input type="range" id="bSize" min="0.05" max="0.7" step="0.01" value="0.25"></div>
           <div class="slrow"><label for="bStr">Strength</label><input type="range" id="bStr" min="0.1" max="1" step="0.01" value="0.5"></div>
         </div>
       </div>
       <div class="panel off" data-panel="look" role="tabpanel" aria-label="Look">
-        <div class="scroller" role="group" aria-label="Look">
+        <div class="rowx"><div class="scroller" role="group" aria-label="Look">
           <button class="chip" data-look="photo" aria-pressed="true">Original</button>
           <button class="chip" data-look="texture" aria-pressed="false">Your photo</button>
           <button class="chip" data-look="clay" aria-pressed="false">Clay</button>
           <button class="chip" data-look="wire" aria-pressed="false">Wireframe</button>
           <button class="chip" data-look="ink" aria-pressed="false">Silhouette</button>
-        </div>
+        </div><button class="rbtn" id="rsLook">Reset look</button></div>
         <div class="scroller" id="swatches" role="group" aria-label="Color"></div>
         <div class="scroller" id="texRow" role="group" aria-label="Photo wrap" hidden>
           <label class="chip pick" for="texFile"><span class="tthumb" id="texThumb"></span><span id="texPickLabel">Choose photo</span><input type="file" id="texFile" accept="image/*"></label>
@@ -253,14 +257,14 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
         <div class="note" id="photoNote">Original keeps the scan's own colors. Pick another look to choose a color or wrap a photo.</div>
       </div>
       <div class="panel off" data-panel="view" role="tabpanel" aria-label="View">
-        <div class="scroller" role="group" aria-label="View">
+        <div class="rowx"><div class="scroller" role="group" aria-label="View">
           <button class="chip" data-view="front" aria-pressed="true">Front</button>
           <button class="chip" data-view="back" aria-pressed="false">Back</button>
           <button class="chip" data-view="side" aria-pressed="false">Side</button>
           <button class="chip" data-view="otherside" aria-pressed="false">Other side</button>
           <button class="chip" data-view="top" aria-pressed="false">From above</button>
           <button class="chip" data-view="below" aria-pressed="false">From below</button>
-        </div>
+        </div><button class="rbtn" id="rsView">Reset view</button></div>
         <div class="note">Or drag on the mat to turn it any way you like.</div>
       </div>
     </div>
@@ -406,19 +410,39 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
       clearTimeout(armT); armT = setTimeout(disarm, 3000); return;
     }
     disarm(); pushHistory();
-    defs.forEach(d => { P[d.id] = d.val; });
-    meshes.forEach(m => m.userData.orig.set(m.userData.pristine));
-    effect = 'twist'; syncShapeUI(); dirty = true;
-    // look: original colors, default ink colors and photo-wrap settings (a chosen photo stays ready to reuse)
-    Object.assign(colors, { clay: '#bdb6ad', wire: '#ff48b0', ink: '#15171a' });
+    resetShape(); resetSculpt(); resetLook(); resetView();
+    toast('Everything reset. Undo brings back your shape and sculpting.');
+  });
+  // ---------- per-tool resets ----------
+  function resetShape() { defs.forEach(d => { P[d.id] = d.val; }); effect = 'twist'; syncShapeUI(); dirty = true; }
+  function resetSculpt() { meshes.forEach(m => m.userData.orig.set(m.userData.pristine)); dirty = true; syncResets(); }
+  function resetLook() {
+    // original colors, default ink colors and photo-wrap settings; a chosen photo stays ready to reuse
+    Object.assign(colors, DEFAULT_COLORS);
     ['clay', 'wire', 'ink'].forEach(k => looks[k].color.set(colors[k]));
     mapMode = 'wrap'; texRep = 1; applyRepeat();
     $$('[data-map]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.map === 'wrap')));
     $('#texRepeat').textContent = 'Repeat 1×';
     setLook('photo');
-    setView('front');
-    toast('Everything reset. Undo brings back your shape and sculpting.');
+  }
+  function resetView() { setView('front'); }
+  const shapeChanged = () => defs.some(d => Math.abs(P[d.id] - d.val) > 1e-6);
+  const sculptChanged = () => meshes.some(m => {
+    const a = m.userData.orig, b = m.userData.pristine;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return true;
+    return false;
   });
+  function syncResets() {
+    $('#rsShape').disabled = !shapeChanged();
+    $('#rsSculpt').disabled = !sculptChanged();
+    $('#rsLook').disabled = look === 'photo' && mapMode === 'wrap' && texRep === 1 &&
+      Object.keys(DEFAULT_COLORS).every(k => colors[k] === DEFAULT_COLORS[k]);
+    $('#rsView').disabled = view === 'front';
+  }
+  $('#rsShape').addEventListener('click', () => { pushHistory(); resetShape(); toast('Shape reset. Undo brings it back.'); });
+  $('#rsSculpt').addEventListener('click', () => { pushHistory(); resetSculpt(); toast('Sculpting reset. Undo brings it back.'); });
+  $('#rsLook').addEventListener('click', () => { resetLook(); toast('Back to the original look'); });
+  $('#rsView').addEventListener('click', resetView);
   function disarm() { const b = $('#startOver'); b.classList.remove('warn'); b.setAttribute('aria-label', 'Reset all'); $('#startOverLabel').textContent = 'Reset all'; }
 
   // ---------- shape panel ----------
@@ -451,6 +475,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
       const dd = defs.find(x => x.id === b.dataset.fx);
       b.classList.toggle('changed', Math.abs(P[dd.id] - dd.val) > 1e-6);
     });
+    syncResets();
   }
   let editing = false;
   const beginEdit = () => { if (!editing) { pushHistory(); editing = true; } };
@@ -487,12 +512,14 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     view = v; const p = views[v];
     camera.position.set(p[0], p[1], p[2]); controls.target.set(0, 0, 0); controls.update();
     $$('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
+    syncResets();
   }
   $$('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
-  controls.addEventListener('start', () => { view = 'custom'; $$('[data-view]').forEach(b => b.setAttribute('aria-pressed', 'false')); });
+  controls.addEventListener('start', () => { view = 'custom'; $$('[data-view]').forEach(b => b.setAttribute('aria-pressed', 'false')); syncResets(); });
 
   // ---------- look + color ----------
-  const colors = { clay: '#bdb6ad', wire: '#ff48b0', ink: '#15171a' };
+  const DEFAULT_COLORS = { clay: '#bdb6ad', wire: '#ff48b0', ink: '#15171a' };
+  const colors = Object.assign({}, DEFAULT_COLORS);
   const palette = [['#ff48b0', 'Fluorescent pink'], ['#0078bf', 'Blue'], ['#ffe800', 'Yellow'], ['#00a95c', 'Green'],
     ['#ff6c2f', 'Orange'], ['#15171a', 'Black'], ['#bdb6ad', 'Clay gray'], ['#ffffff', 'White']];
   const swEl = $('#swatches');
@@ -506,7 +533,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   custom.innerHTML = '<input type="color" id="customColor" value="#ff48b0" aria-label="Any color"> Any';
   swEl.appendChild(custom);
   $('#customColor').addEventListener('input', e => setColor(e.target.value));
-  function setColor(hex) { if (!(look in colors)) return; colors[look] = hex.toLowerCase(); looks[look].color.set(hex); syncLookUI(); }
+  function setColor(hex) { if (!(look in colors)) return; colors[look] = hex.toLowerCase(); looks[look].color.set(hex); syncLookUI(); syncResets(); }
   function syncLookUI() {
     $$('[data-look]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.look === look)));
     const photo = look === 'photo', tex = look === 'texture';
@@ -523,7 +550,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
       else if (m.userData.origUV) g.setAttribute('uv', m.userData.origUV);
       m.material = l === 'photo' ? m.userData.origMat : l === 'texture' ? (texture ? looks.texture : looks.clay) : looks[l];
     });
-    syncLookUI();
+    syncLookUI(); syncResets();
   }
   $$('[data-look]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.look === 'texture' && !texture) $('#texFile').click();
@@ -562,11 +589,11 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   $$('[data-map]').forEach(b => b.addEventListener('click', () => {
     mapMode = b.dataset.map;
     $$('[data-map]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-    if (look === 'texture') setLook('texture');
+    if (look === 'texture') setLook('texture'); else syncResets();
   }));
   $('#texRepeat').addEventListener('click', () => {
     texRep = texRep === 1 ? 2 : texRep === 2 ? 4 : 1;
-    $('#texRepeat').textContent = 'Repeat ' + texRep + '×'; applyRepeat();
+    $('#texRepeat').textContent = 'Repeat ' + texRep + '×'; applyRepeat(); syncResets();
   });
 
   // ---------- sculpt ----------
@@ -642,7 +669,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     pushHistory(); stroking = true; applyBrush(hit); showRing(hit);
   });
   cv.addEventListener('pointermove', e => { if (tool === 'sculpt' && (stroking || pointers.size === 0)) pending = e; });
-  const up = e => { pointers.delete(e.pointerId); stroking = false; };
+  const up = e => { pointers.delete(e.pointerId); if (stroking) { stroking = false; syncResets(); } };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('pointerleave', () => { if (!stroking) ring.visible = false; });
   function brushTick() {

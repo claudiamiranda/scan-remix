@@ -11,7 +11,7 @@ A one-screen browser studio for remixing 3D scans and turning them into printabl
 - **View:** front, back, side, other side, from above, from below, or turn it freely.
 - **Cutouts:** the scissors button captures the current view as a transparent, tightly cropped PNG, ready to print and cut.
 
-Undo and redo cover every change, and Reset all returns the scan, look and view to the start. Nothing is uploaded: scans stay in the browser.
+Undo and redo cover every change, each tool has its own reset, and Reset all returns the scan, look and view to the start. Nothing is uploaded: scans stay in the browser.
 
 ## Run it
 
