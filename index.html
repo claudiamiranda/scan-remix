@@ -179,6 +179,35 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
 .cut .acts .save { background: var(--riso); color: var(--on-riso); border-color: var(--riso); }
 .cut .msg { font-size: 12px; color: var(--riso); min-height: 1em; }
 .empty { border: 1.5px dashed var(--line); border-radius: 10px; padding: 24px; color: var(--muted); text-align: center; }
+.arrange {
+  position: fixed; inset: 0; z-index: 30; background: var(--paper); display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 8px;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px)); padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+.arrange > * { max-width: 1100px; width: 100%; margin: 0 auto; min-width: 0; }
+.arr-stage {
+  position: relative; min-height: 0; border-radius: 12px; overflow: hidden; touch-action: none; background-color: var(--mat);
+  background-image: linear-gradient(var(--mat-line-major) 1px, transparent 1px), linear-gradient(90deg, var(--mat-line-major) 1px, transparent 1px),
+    linear-gradient(var(--mat-line) 1px, transparent 1px), linear-gradient(90deg, var(--mat-line) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px; background-position: -1px -1px;
+}
+.arr-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.arr-bar { min-height: 48px; display: flex; align-items: center; }
+.arr-bar > div { display: flex; align-items: center; gap: 8px; width: 100%; overflow-x: auto; scrollbar-width: none; }
+.arr-bar .chip { padding: 0 11px; }
+.arr-bar > div { gap: 6px !important; }
+.arr-bar .size.warn { color: var(--riso); font-weight: 700; }
+.arr-bar .size { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; margin-right: auto; padding-right: 4px; }
+.arr-bar .note { margin-right: auto; min-height: 0; }
+.arr-tray { display: flex; gap: 8px; overflow-x: auto; padding: 2px; min-height: 76px; align-items: center; }
+.tthumbbtn {
+  flex: none; width: 72px; height: 72px; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; padding: 4px; display: grid; place-items: center;
+  background-color: var(--panel);
+  background-image: linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%), linear-gradient(45deg, var(--check) 25%, transparent 25%, transparent 75%, var(--check) 75%);
+  background-size: 12px 12px; background-position: 0 0, 6px 6px;
+}
+.tthumbbtn img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.arrange .toast { top: 10px; right: 10px; }
 @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; animation: none !important; } }
 </style>
 
@@ -285,6 +314,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="cutsTitle">
     <div class="sheet-head">
       <h2 id="cutsTitle">Cutouts</h2>
+      <button class="tbtn open" id="openArrange" disabled>Arrange to print</button>
       <button class="tbtn" id="closeCuts">Done</button>
     </div>
     <p>Each cutout has a clear background, so it prints ready to cut. Tap Save to keep it as a PNG.</p>
@@ -293,10 +323,40 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   </div>
 </div>
 
+<div class="arrange" id="arrange" hidden role="dialog" aria-modal="true" aria-labelledby="arrTitle">
+  <header class="top">
+    <button class="tbtn" id="arrBack" aria-label="Back to cutouts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><span class="hide-sm">Back</span>
+    </button>
+    <div class="brand" id="arrTitle">Print <span>sheet</span></div>
+    <button class="tbtn" id="arrPng" disabled>PNG</button>
+    <button class="tbtn open" id="arrPdf" disabled>Save PDF</button>
+  </header>
+  <div class="arr-stage" id="arrStage">
+    <canvas id="arrCanvas" aria-label="Letter-size print sheet. Drag cutouts to place them."></canvas>
+    <div class="toast" id="arrToast" role="status" aria-live="polite"></div>
+  </div>
+  <div class="arr-bar">
+    <div id="arrSel" hidden>
+      <span class="size" id="arrSize"></span>
+      <button class="chip" id="arrDel">Delete</button>
+      <button class="chip" id="arrDup" title="Duplicate">Copy</button>
+      <button class="chip" id="arrFront" title="Bring to front">Front</button>
+      <button class="chip" id="arrBack2" title="Send to back">Back</button>
+    </div>
+    <div id="arrNone">
+      <span class="note">Tap a cutout below to add it. Drag to place, pull the corner to resize, tap the paper to deselect.</span>
+      <button class="chip" id="arrOrient">Landscape</button>
+    </div>
+  </div>
+  <div class="arr-tray" id="arrTray" aria-label="Your cutouts"></div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -827,6 +887,24 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   // ---------- cutouts ----------
   let cutCount = 0;
   const downloadsP = (window.claude && window.claude.use) ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
+  // returns true when saved; false when the viewer said no or it failed (with a message shown via onMsg)
+  async function saveFile(fname, bytes, type, onMsg) {
+    const say = onMsg || (m => m && toast(m));
+    const dl = await downloadsP;
+    if (!dl) {
+      // standalone page (e.g. GitHub Pages): a normal download link works
+      const u = URL.createObjectURL(new Blob([bytes], { type }));
+      const a = document.createElement('a'); a.href = u; a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+      return true;
+    }
+    try { await dl.save({ filename: fname, data: bytes }); return true; }
+    catch (err) {
+      const c = err && err.code;
+      say(c === 'declined' ? '' : c === 'rate_limited' ? 'One save at a time. Try again in a moment.' : 'Could not save. Try again.');
+      return false;
+    }
+  }
   function dataUrlToBytes(u) {
     const bin = atob(u.split(',')[1]), out = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
@@ -872,17 +950,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     fig.querySelector('.cap').textContent = `#${num} · ${changed} · ${lookNames[look]}`;
     const msg = fig.querySelector('.msg');
     fig.querySelector('.save').addEventListener('click', async () => {
-      const dl = await downloadsP;
-      if (!dl) {
-        // standalone page (e.g. GitHub Pages): a normal download link works
-        const a = document.createElement('a'); a.href = url; a.download = fname;
-        document.body.appendChild(a); a.click(); a.remove(); msg.textContent = 'Saved'; return;
-      }
-      try { await dl.save({ filename: fname, data: dataUrlToBytes(url) }); msg.textContent = 'Saved'; }
-      catch (err) {
-        const c = err && err.code;
-        msg.textContent = c === 'declined' ? '' : c === 'rate_limited' ? 'One save at a time. Try again in a moment.' : 'Could not save. Try again.';
-      }
+      if (await saveFile(fname, dataUrlToBytes(url), 'image/png', m => { msg.textContent = m; })) msg.textContent = 'Saved';
     });
     fig.querySelector('.rm').addEventListener('click', () => { fig.remove(); syncCuts(); });
     $('#cuts').prepend(fig);
@@ -894,6 +962,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     const imgs = $$('.cut img'), n = imgs.length;
     $('#count').textContent = n; $('#empty').hidden = n > 0;
     $('#thumb').style.backgroundImage = n ? `url("${imgs[0].src}")` : 'none';
+    $('#openArrange').disabled = !n;
   }
   const drawer = $('#drawer');
   function openCuts() { drawer.hidden = false; $('#closeCuts').focus(); }
@@ -902,6 +971,229 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   $('#closeCuts').addEventListener('click', closeCuts);
   drawer.addEventListener('click', e => { if (e.target === drawer) closeCuts(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !drawer.hidden) closeCuts(); });
+
+  // ---------- print sheet ----------
+  // A letter-size sheet on the cutting mat. Items are placed in inches so the printout matches what you see.
+  const arr = $('#arrange'), arrStage = $('#arrStage'), ac = $('#arrCanvas'), actx = ac.getContext('2d');
+  const MARGIN = 0.25;                       // most home printers can't print the outer quarter inch
+  let PW = 8.5, PH = 11, items = [], sel = null, nextId = 1, sheetNum = 0;
+  let sc = 1, ox = 0, oy = 0, dpr = 1;      // screen px per inch, page origin in css px
+  const HANDLE = 12;
+  const itemH = it => it.w * it.img.height / it.img.width;
+
+  function layoutSheet() {
+    const r = arrStage.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    ac.width = Math.max(1, Math.round(r.width * dpr)); ac.height = Math.max(1, Math.round(r.height * dpr));
+    const pad = 28;
+    sc = Math.min((r.width - pad * 2) / PW, (r.height - pad * 2) / PH);
+    ox = (r.width - PW * sc) / 2; oy = (r.height - PH * sc) / 2;
+    drawSheet();
+  }
+  new ResizeObserver(() => { if (!arr.hidden) layoutSheet(); }).observe(arrStage);
+
+  function drawItems(ctx, k, x0, y0) {
+    for (const it of items) {
+      const w = it.w * k, h = itemH(it) * k;
+      ctx.save(); ctx.translate(x0 + it.cx * k, y0 + it.cy * k); ctx.rotate(it.rot);
+      ctx.drawImage(it.img, -w / 2, -h / 2, w, h); ctx.restore();
+    }
+  }
+  function corners(it) {
+    const hw = it.w / 2, hh = itemH(it) / 2, c = Math.cos(it.rot), s = Math.sin(it.rot);
+    const pt = (x, y) => ({ x: ox + (it.cx + x * c - y * s) * sc, y: oy + (it.cy + x * s + y * c) * sc });
+    return { tl: pt(-hw, -hh), tr: pt(hw, -hh), br: pt(hw, hh), bl: pt(-hw, hh), top: pt(0, -hh - 28 / sc) , topMid: pt(0, -hh) };
+  }
+  function drawSheet() {
+    const ctx = actx;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, ac.width, ac.height);
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 4;
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(ox, oy, PW * sc, PH * sc); ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(ox, oy, PW * sc, PH * sc); ctx.clip();
+    drawItems(ctx, sc, ox, oy); ctx.restore();
+    // printable-area guide
+    ctx.save(); ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(23,32,27,.28)'; ctx.lineWidth = 1;
+    ctx.strokeRect(ox + MARGIN * sc, oy + MARGIN * sc, (PW - 2 * MARGIN) * sc, (PH - 2 * MARGIN) * sc); ctx.restore();
+    if (sel) {
+      const k = corners(sel);
+      ctx.save(); ctx.strokeStyle = '#d92f84'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(k.tl.x, k.tl.y); ctx.lineTo(k.tr.x, k.tr.y); ctx.lineTo(k.br.x, k.br.y); ctx.lineTo(k.bl.x, k.bl.y); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(k.topMid.x, k.topMid.y); ctx.lineTo(k.top.x, k.top.y); ctx.stroke();
+      for (const [p, icon] of [[k.br, 'scale'], [k.top, 'rotate']]) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, HANDLE, 0, Math.PI * 2); ctx.fillStyle = '#d92f84'; ctx.fill();
+        ctx.lineWidth = 2.5; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+        ctx.fillStyle = '#ffffff'; ctx.font = '700 13px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(icon === 'scale' ? '⤡' : '↻', p.x, p.y + 1);
+      }
+      ctx.restore();
+    }
+    syncArrBar();
+  }
+  function syncArrBar() {
+    $('#arrSel').hidden = !sel; $('#arrNone').hidden = !!sel;
+    if (sel) {
+      const k = corners(sel), xs = [k.tl.x, k.tr.x, k.br.x, k.bl.x].map(x => (x - ox) / sc), ys = [k.tl.y, k.tr.y, k.br.y, k.bl.y].map(y => (y - oy) / sc);
+      const out = Math.min(...xs) < MARGIN - 0.01 || Math.min(...ys) < MARGIN - 0.01 || Math.max(...xs) > PW - MARGIN + 0.01 || Math.max(...ys) > PH - MARGIN + 0.01;
+      const sz = $('#arrSize');
+      sz.textContent = (out ? '⚠ ' : '') + `${sel.w.toFixed(1)} × ${itemH(sel).toFixed(1)} in`;
+      sz.classList.toggle('warn', out);
+      sz.title = out ? 'Part of this cutout is outside the printable area' : 'Printed size';
+    }
+    $('#arrPdf').disabled = $('#arrPng').disabled = !items.length;
+  }
+
+  function toPage(e) {
+    const r = ac.getBoundingClientRect();
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    return { sx, sy, x: (sx - ox) / sc, y: (sy - oy) / sc };
+  }
+  function hitItem(p) {
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i], dx = p.x - it.cx, dy = p.y - it.cy, c = Math.cos(-it.rot), s = Math.sin(-it.rot);
+      const lx = dx * c - dy * s, ly = dx * s + dy * c;
+      if (Math.abs(lx) <= it.w / 2 && Math.abs(ly) <= itemH(it) / 2) return it;
+    }
+    return null;
+  }
+  const near = (p, q) => Math.hypot(p.sx - q.x, p.sy - q.y) <= HANDLE + 10;
+
+  const ptrs = new Map(); let gesture = null;
+  ac.addEventListener('pointerdown', e => {
+    ac.setPointerCapture(e.pointerId);
+    const p = toPage(e); ptrs.set(e.pointerId, p);
+    if (ptrs.size === 2 && sel) { startPinch(); return; }
+    if (ptrs.size > 1) return;
+    if (sel) {
+      const k = corners(sel);
+      if (near(p, k.br)) {
+        gesture = { mode: 'scale', w0: sel.w, d0: Math.hypot(p.x - sel.cx, p.y - sel.cy) }; return;
+      }
+      if (near(p, k.top)) {
+        gesture = { mode: 'rotate', r0: sel.rot, a0: Math.atan2(p.y - sel.cy, p.x - sel.cx) }; return;
+      }
+    }
+    const hit = hitItem(p);
+    sel = hit;
+    if (hit) gesture = { mode: 'move', dx: p.x - hit.cx, dy: p.y - hit.cy }; else gesture = null;
+    drawSheet();
+  });
+  function startPinch() {
+    const [a, b] = [...ptrs.values()];
+    gesture = { mode: 'pinch', w0: sel.w, r0: sel.rot, cx0: sel.cx, cy0: sel.cy,
+      d0: Math.hypot(b.x - a.x, b.y - a.y), a0: Math.atan2(b.y - a.y, b.x - a.x), mx0: (a.x + b.x) / 2, my0: (a.y + b.y) / 2 };
+  }
+  const clampW = w => Math.max(0.3, Math.min(20, w));
+  ac.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const p = toPage(e); ptrs.set(e.pointerId, p);
+    if (!gesture || !sel) return;
+    if (gesture.mode === 'move') { sel.cx = p.x - gesture.dx; sel.cy = p.y - gesture.dy; }
+    else if (gesture.mode === 'scale') { sel.w = clampW(gesture.w0 * Math.hypot(p.x - sel.cx, p.y - sel.cy) / Math.max(0.05, gesture.d0)); }
+    else if (gesture.mode === 'rotate') { sel.rot = gesture.r0 + Math.atan2(p.y - sel.cy, p.x - sel.cx) - gesture.a0; }
+    else if (gesture.mode === 'pinch' && ptrs.size >= 2) {
+      const [a, b] = [...ptrs.values()];
+      sel.w = clampW(gesture.w0 * Math.hypot(b.x - a.x, b.y - a.y) / Math.max(0.05, gesture.d0));
+      sel.rot = gesture.r0 + Math.atan2(b.y - a.y, b.x - a.x) - gesture.a0;
+      sel.cx = gesture.cx0 + (a.x + b.x) / 2 - gesture.mx0; sel.cy = gesture.cy0 + (a.y + b.y) / 2 - gesture.my0;
+    }
+    // snap rotation to upright when close, so straight placement is easy
+    if (gesture.mode === 'rotate' || gesture.mode === 'pinch') {
+      const t = Math.round(sel.rot / (Math.PI / 2)) * (Math.PI / 2);
+      if (Math.abs(sel.rot - t) < 0.06) sel.rot = t;
+    }
+    drawSheet();
+  });
+  const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size === 0) gesture = null; else if (ptrs.size === 1 && gesture && gesture.mode === 'pinch') gesture = null; };
+  ac.addEventListener('pointerup', endPtr); ac.addEventListener('pointercancel', endPtr);
+  ac.addEventListener('wheel', e => {
+    if (!sel) return; e.preventDefault();
+    sel.w = clampW(sel.w * Math.exp(-e.deltaY * 0.0015)); drawSheet();
+  }, { passive: false });
+
+  // cutout PNGs carry a clear border for printing one at a time; trim it so sizes on the sheet are the shape itself
+  function trimmed(img) {
+    const pad = 24, c = document.createElement('canvas');
+    c.width = Math.max(1, img.naturalWidth - pad * 2); c.height = Math.max(1, img.naturalHeight - pad * 2);
+    c.getContext('2d').drawImage(img, pad, pad, c.width, c.height, 0, 0, c.width, c.height);
+    return c;
+  }
+  function addToSheet(src) {
+    const img = trimmed(src), n = items.length;
+    const it = { id: nextId++, img, w: Math.min(3, PW - 2 * MARGIN), rot: 0, cx: PW / 2 + (n % 5) * 0.3 - 0.6, cy: PH / 2 + (n % 5) * 0.3 - 0.6 };
+    const h = itemH(it), maxH = PH - 2 * MARGIN;
+    if (h > maxH) it.w *= maxH / h;
+    items.push(it); sel = it; drawSheet();
+  }
+  function buildTray() {
+    const tray = $('#arrTray'); tray.textContent = '';
+    const imgs = $$('#cuts .cut img');
+    if (!imgs.length) { const n = document.createElement('div'); n.className = 'note'; n.textContent = 'No cutouts yet. Take some in the studio first.'; tray.appendChild(n); return; }
+    imgs.forEach(src => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tthumbbtn';
+      b.setAttribute('aria-label', 'Add ' + (src.alt || 'cutout') + ' to the sheet');
+      const im = new Image(); im.src = src.src; im.alt = ''; b.appendChild(im);
+      b.addEventListener('click', () => { if (im.complete) addToSheet(im); else im.onload = () => addToSheet(im); });
+      tray.appendChild(b);
+    });
+  }
+  function openArrange() {
+    drawer.hidden = true; arr.hidden = false; buildTray();
+    requestAnimationFrame(layoutSheet); $('#arrBack').focus();
+  }
+  function closeArrange() { arr.hidden = true; sel = null; openCuts(); }
+  $('#openArrange').addEventListener('click', openArrange);
+  $('#arrBack').addEventListener('click', closeArrange);
+  $('#arrDup').addEventListener('click', () => {
+    if (!sel) return;
+    const it = Object.assign({}, sel, { id: nextId++, cx: sel.cx + 0.4, cy: sel.cy + 0.4 });
+    items.push(it); sel = it; drawSheet();
+  });
+  $('#arrFront').addEventListener('click', () => { if (!sel) return; items = items.filter(i => i !== sel); items.push(sel); drawSheet(); });
+  $('#arrBack2').addEventListener('click', () => { if (!sel) return; items = items.filter(i => i !== sel); items.unshift(sel); drawSheet(); });
+  $('#arrDel').addEventListener('click', () => { if (!sel) return; items = items.filter(i => i !== sel); sel = null; drawSheet(); });
+  $('#arrOrient').addEventListener('click', () => {
+    [PW, PH] = [PH, PW];
+    items.forEach(it => { const t = it.cx; it.cx = it.cy * PW / PH; it.cy = t * PH / PW; });
+    $('#arrOrient').textContent = PW > PH ? 'Portrait' : 'Landscape';
+    layoutSheet();
+  });
+  document.addEventListener('keydown', e => {
+    if (arr.hidden) return;
+    if (e.key === 'Escape') { if (sel) { sel = null; drawSheet(); } else closeArrange(); return; }
+    if (!sel || e.target.closest('input')) return;
+    const step = e.shiftKey ? 0.5 : 0.1, mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (mv) { e.preventDefault(); sel.cx += mv[0]; sel.cy += mv[1]; drawSheet(); }
+    else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); $('#arrDel').click(); }
+  });
+
+  function renderSheet(dpi) {
+    const c = document.createElement('canvas'); c.width = Math.round(PW * dpi); c.height = Math.round(PH * dpi);
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.imageSmoothingQuality = 'high'; drawItems(ctx, dpi, 0, 0);
+    return c;
+  }
+  async function saveSheet(kind) {
+    const btn = kind === 'pdf' ? $('#arrPdf') : $('#arrPng');
+    if (!items.length) return;
+    btn.disabled = true;
+    try {
+      const n = ++sheetNum, c = renderSheet(200);
+      let bytes, fname;
+      if (kind === 'pdf') {
+        if (!window.jspdf) { toastArr('PDF is not available right now. Save a PNG instead.'); return; }
+        const doc = new window.jspdf.jsPDF({ orientation: PW > PH ? 'landscape' : 'portrait', unit: 'in', format: 'letter' });
+        doc.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, PW, PH);
+        bytes = new Uint8Array(doc.output('arraybuffer')); fname = `scan-remix-sheet-${n}.pdf`;
+      } else { bytes = dataUrlToBytes(c.toDataURL('image/png')); fname = `scan-remix-sheet-${n}.png`; }
+      const r = await saveFile(fname, bytes, kind === 'pdf' ? 'application/pdf' : 'image/png');
+      if (r) toastArr(kind === 'pdf' ? 'Saved. Print at 100% (actual size) so sizes match.' : 'Saved. Print it to fill a letter page.');
+    } finally { btn.disabled = !items.length; }
+  }
+  let arrToastT;
+  function toastArr(m) { const t = $('#arrToast'); t.textContent = m; t.classList.add('on'); clearTimeout(arrToastT); arrToastT = setTimeout(() => t.classList.remove('on'), 3200); }
+  $('#arrPdf').addEventListener('click', () => saveSheet('pdf'));
+  $('#arrPng').addEventListener('click', () => saveSheet('png'));
 
   // ---------- go ----------
   // start with the sample doll scan; fall back to a drawn pot only if it cannot load
