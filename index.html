@@ -150,6 +150,9 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
 .slrow label { font-weight: 700; flex: none; min-width: 64px; }
 .slrow input[type=range] { flex: 1; min-width: 0; accent-color: var(--riso); height: 32px; }
 .slrow output { font-family: var(--font-mono); font-size: 12px; color: var(--muted); min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.iconreset { flex: none; width: 44px; height: 44px; margin-right: -8px; border: 0; background: none; color: var(--muted); cursor: pointer; display: grid; place-items: center; border-radius: 50%; }
+.iconreset svg { width: 20px; height: 20px; }
+.iconreset.off { visibility: hidden; }
 .link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 10px 2px; flex: none; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .two .slrow label { min-width: 0; }
@@ -162,7 +165,6 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
 .tthumb { width: 32px; height: 32px; border-radius: 50%; background: var(--check) center / cover no-repeat; border: 1px solid var(--line); flex: none; }
 .rowx { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .rowx .scroller { flex: 1; min-width: 0; }
-.rbtn { flex: none; height: 44px; padding: 0 4px; border: 0; background: none; color: var(--ink); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .note { min-height: 44px; display: flex; align-items: center; color: var(--muted); font-size: 14px; }
 .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .tab {
@@ -270,12 +272,12 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   <section class="dock">
     <div class="tray">
       <div class="panel" data-panel="shape" role="tabpanel" aria-label="Shape">
-        <div class="rowx"><div class="scroller" id="fxChips" role="group" aria-label="Effect"></div><button class="rbtn" id="rsShape">Reset shape</button></div>
+        <div class="rowx"><div class="scroller" id="fxChips" role="group" aria-label="Effect"></div></div>
         <div class="slrow">
           <label for="fx" id="fxLabel">Twist</label>
           <input type="range" id="fx">
           <output id="fxVal" for="fx"></output>
-          <button class="link" id="fxReset">Reset</button>
+          <button class="iconreset" id="fxReset" aria-label="Reset this effect" title="Reset this effect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
         </div>
       </div>
       <div class="panel off" data-panel="sculpt" role="tabpanel" aria-label="Sculpt">
@@ -283,7 +285,7 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
           <button class="chip" data-brush="pull" aria-pressed="true">Pull out</button>
           <button class="chip" data-brush="push" aria-pressed="false">Push in</button>
           <button class="chip" data-brush="smooth" aria-pressed="false">Smooth</button>
-        </div><button class="rbtn" id="rsSculpt">Reset sculpt</button></div>
+        </div></div>
         <div class="two">
           <div class="slrow"><label for="bSize">Size</label><input type="range" id="bSize" min="0.05" max="0.7" step="0.01" value="0.25"></div>
           <div class="slrow"><label for="bStr">Strength</label><input type="range" id="bStr" min="0.1" max="1" step="0.01" value="0.5"></div>
@@ -515,19 +517,16 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   });
   function syncResets() {
     const sh = shapeChanged(), sc2 = sculptChanged();
-    $('#rsShape').hidden = !sh;
-    $('#rsSculpt').hidden = !sc2;
     const d = defs.find(x => x.id === effect);
     // keep the slider's width steady while dragging, so this link fades in place instead of collapsing
-    $('#fxReset').style.visibility = Math.abs(P[d.id] - d.val) > 1e-6 ? 'visible' : 'hidden';
+    $('#fxReset').classList.toggle('off', Math.abs(P[d.id] - d.val) <= 1e-6);
+    $('#fxReset').setAttribute('aria-label', 'Reset ' + d.label); $('#fxReset').title = 'Reset ' + d.label;
     const lookChanged = look !== 'photo' || mapMode !== 'wrap' || texRep !== 1 ||
       Object.keys(DEFAULT_COLORS).some(k => colors[k] !== DEFAULT_COLORS[k]);
     const any = sh || sc2 || lookChanged || view !== 'front';
     if (!any) disarm();
     $('#startOver').hidden = !any;
   }
-  $('#rsShape').addEventListener('click', () => { pushHistory(); resetShape(); toast('Shape reset. Undo brings it back.'); });
-  $('#rsSculpt').addEventListener('click', () => { pushHistory(); resetSculpt(); toast('Sculpting reset. Undo brings it back.'); });
   function disarm() { const b = $('#startOver'); b.classList.remove('warn'); b.setAttribute('aria-label', 'Reset all'); $('#startOverLabel').textContent = 'Reset all'; }
 
   // ---------- shape panel ----------
