@@ -69,7 +69,11 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
 .tbtn.open { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .tbtn.open input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .tbtn.warn { background: var(--riso); color: var(--on-riso); border-color: var(--riso); }
-@media (max-width: 480px) { .hide-sm { display: none; } }
+@media (max-width: 480px) {
+  .hide-sm { display: none; }
+  .brand { font-size: 19px; line-height: .95; }
+  .brand span { display: block; }
+}
 
 /* stage */
 .stage {
