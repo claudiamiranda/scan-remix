@@ -1,0 +1,14 @@
+{
+  "name": "Scan Remix",
+  "short_name": "Scan Remix",
+  "description": "Remix 3D scans into printable collage cutouts.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef2ef",
+  "theme_color": "#eef2ef",
+  "icons": [
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

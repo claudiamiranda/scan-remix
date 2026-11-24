@@ -14,6 +14,13 @@ A one-screen browser studio for remixing 3D scans and turning them into printabl
 
 Undo and redo cover every change, Shape and Sculpt each have their own reset, and Reset all returns the scan, look and view to the start. Nothing is uploaded: scans stay in the browser.
 
+## Use it on a phone or tablet
+
+For the most room, add it to the Home Screen so it opens full-screen without browser bars:
+
+- **iPhone / iPad (Safari):** tap Share, then **Add to Home Screen**.
+- **Android (Chrome):** open the ⋮ menu, then **Add to Home screen** or **Install app**.
+
 ## Run it
 
 It is a single `index.html` with no build step, plus `doll_01.glb`, a scan of a doll that loads as the sample. Open it in a browser, or turn on GitHub Pages for this repository (Settings → Pages → deploy from the `main` branch, root folder).
