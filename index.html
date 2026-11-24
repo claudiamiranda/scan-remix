@@ -192,9 +192,9 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
     <button class="tbtn icon" id="redo" aria-label="Redo" title="Redo" disabled>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg>
     </button>
-    <button class="tbtn" id="startOver" title="Undo every change to this scan">
+    <button class="tbtn" id="startOver" title="Reset shape, sculpting, look and view" aria-label="Reset all">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-      <span class="hide-sm" id="startOverLabel">Start over</span>
+      <span class="hide-sm" id="startOverLabel">Reset all</span>
     </button>
   </header>
 
@@ -401,15 +401,25 @@ button:focus-visible, input:focus-visible, label:focus-within { outline: 3px sol
   $('#startOver').addEventListener('click', () => {
     const b = $('#startOver');
     if (!b.classList.contains('warn')) {
-      b.classList.add('warn'); $('#startOverLabel').textContent = 'Tap again'; toast('Tap Start over again to undo every change');
+      b.classList.add('warn'); b.setAttribute('aria-label', 'Tap again to reset all');
+      $('#startOverLabel').textContent = 'Tap again'; toast('Tap Reset all again to clear every change');
       clearTimeout(armT); armT = setTimeout(disarm, 3000); return;
     }
     disarm(); pushHistory();
     defs.forEach(d => { P[d.id] = d.val; });
     meshes.forEach(m => m.userData.orig.set(m.userData.pristine));
-    syncShapeUI(); dirty = true; toast('Back to the original scan. Undo brings your changes back.');
+    effect = 'twist'; syncShapeUI(); dirty = true;
+    // look: original colors, default ink colors and photo-wrap settings (a chosen photo stays ready to reuse)
+    Object.assign(colors, { clay: '#bdb6ad', wire: '#ff48b0', ink: '#15171a' });
+    ['clay', 'wire', 'ink'].forEach(k => looks[k].color.set(colors[k]));
+    mapMode = 'wrap'; texRep = 1; applyRepeat();
+    $$('[data-map]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.map === 'wrap')));
+    $('#texRepeat').textContent = 'Repeat 1×';
+    setLook('photo');
+    setView('front');
+    toast('Everything reset. Undo brings back your shape and sculpting.');
   });
-  function disarm() { $('#startOver').classList.remove('warn'); $('#startOverLabel').textContent = 'Start over'; }
+  function disarm() { const b = $('#startOver'); b.classList.remove('warn'); b.setAttribute('aria-label', 'Reset all'); $('#startOverLabel').textContent = 'Reset all'; }
 
   // ---------- shape panel ----------
   const fx = $('#fx'), fxChips = $('#fxChips');
